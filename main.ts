@@ -1,134 +1,140 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import {
+  App,
+  Plugin,
+  TAbstractFile,
+  TFile,
+  TFolder,
+} from "obsidian";
 
-// Remember to rename these classes and interfaces!
+// 形如 "001 标题"、"0001-标题"、"12_标题" 都视为已经带前缀
+const PREFIX_RE = /^(\d+)[\s._-]+(.+)$/;
 
-interface MyPluginSettings {
-	mySetting: string;
+export default class AutoNumberPrefixPlugin extends Plugin {
+
+  async onload() {
+    console.log("Auto Number Prefix plugin loaded");
+
+    // 监听新建文件 / 文件夹事件
+    this.registerEvent(
+      this.app.vault.on("create", (file) => {
+        this.handleCreate(file);
+      })
+    );
+  }
+
+  /**
+   * 新建文件 / 文件夹时触发
+   */
+  private async handleCreate(file: TAbstractFile) {
+    if (!(file instanceof TFile || file instanceof TFolder)) return;
+
+    const parent = file.parent;
+    if (!parent) return;
+
+    const baseName = file instanceof TFile ? file.basename : file.name;
+    const ext = file instanceof TFile ? file.extension : "";
+
+    if (this.hasPrefix(baseName)) return;
+
+    const siblings = parent.children ?? [];
+
+    let maxNum = 0;
+
+    for (const s of siblings) {
+      if (s === file) continue;
+
+      let sBaseName: string;
+      if (s instanceof TFile) {
+        sBaseName = s.basename;
+      } else if (s instanceof TFolder) {
+        sBaseName = s.name;
+      } else {
+        continue;
+      }
+
+      const n = this.parsePrefix(sBaseName);
+      if (n === null) continue;
+
+      if (n > maxNum) {
+        maxNum = n;
+      }
+    }
+
+    const next = maxNum + 1;
+    const prefix = next.toString();
+    const sep = " ";
+
+    const newBaseName = `${prefix}${sep}${baseName}`;
+    const newName = ext ? `${newBaseName}.${ext}` : newBaseName;
+
+    const parentPath = parent.path;
+    let newPath: string;
+    if (parentPath === "/" || parentPath === "") {
+      newPath = newName;
+    } else {
+      newPath = `${parentPath}/${newName}`;
+    }
+
+    try {
+      await this.app.fileManager.renameFile(file as any, newPath);
+
+      // 只对“文件夹”做：让它进入重命名状态，光标落在名字上
+      if (file instanceof TFolder) {
+        this.startInlineRename(newPath);
+      }
+
+    } catch (e) {
+      console.error("Auto Number Prefix: rename failed", e);
+    }
+  }
+
+  /**
+   * 判断名字是否已经带有数字前缀
+   * 例如 "001 标题"、"001-标题" 等
+   */
+  private hasPrefix(name: string): boolean {
+    return PREFIX_RE.test(name);
+  }
+
+  /**
+   * 从名字中解析编号（兼容带前导零的旧前缀）
+   */
+  private parsePrefix(name: string): number | null {
+    const m = name.match(PREFIX_RE);
+    if (!m) return null;
+    const numStr = m[1];
+    const num = Number(numStr);
+    if (Number.isNaN(num)) return null;
+    return num;
+  }
+
+
+    private startInlineRename(path: string) {
+    // 找到文件浏览器视图
+    const leaves = this.app.workspace.getLeavesOfType("file-explorer");
+    if (!leaves.length) return;
+
+    const view: any = leaves[0].view;
+    const fileExplorer = view;
+
+    // fileExplorer.fileItems 是 path -> FileItem 的映射
+    const item = fileExplorer.fileItems?.[path];
+    if (!item) {
+      // 视图可能还没刷新，稍微晚一点再试一次
+      setTimeout(() => {
+        const itemRetry = fileExplorer.fileItems?.[path];
+        if (!itemRetry) return;
+        fileExplorer.setSelection(itemRetry);
+        fileExplorer.startRename(itemRetry);
+      }, 100);
+      return;
+    }
+
+    // 选中 + 进入重命名模式
+    fileExplorer.setSelection(item);
+    fileExplorer.startRename(item);
+  }
+
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
-}
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
-
-	async onload() {
-		await this.loadSettings();
-
-		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (_evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-		// Perform additional things with the ribbon
-		ribbonIconEl.addClass('my-plugin-ribbon-class');
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status Bar Text');
-
-		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-sample-modal-simple',
-			name: 'Open sample modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'sample-editor-command',
-			name: 'Sample editor command',
-			editorCallback: (editor: Editor, _view: MarkdownView) => {
-				console.log(editor.getSelection());
-				editor.replaceSelection('Sample Editor Command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-sample-modal-complex',
-			name: 'Open sample modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-			}
-		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			console.log('click', evt);
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
-	}
-
-	onunload() {
-
-	}
-
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-	}
-
-	async saveSettings() {
-		await this.saveData(this.settings);
-	}
-}
-
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
-
-	onOpen() {
-		const {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
-	}
-}
-
-class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
-
-	constructor(app: App, plugin: MyPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
-
-	display(): void {
-		const {containerEl} = this;
-
-		containerEl.empty();
-
-		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
-				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
-	}
-}
