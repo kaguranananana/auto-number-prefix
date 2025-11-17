@@ -1,94 +1,34 @@
-# Obsidian Sample Plugin
+# Auto Number Prefix
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+一个在 Obsidian 中为新建文件或文件夹自动添加数字前缀的插件。相比原始标题，插件会根据同级已有编号查找最大值并生成下一个顺序号，例如 `1 任务`、`2 任务`。
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+> 本项目基于官方模板仓库 [obsidianmd/obsidian-sample-plugin](https://github.com/obsidianmd/obsidian-sample-plugin) 开发，在其脚手架上实现了自动编号的特定功能。
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open Sample Modal" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+## 功能简介
 
-## First time developing plugins?
+- 监听 vault 中的创建事件，为新文件或文件夹加上递增数字前缀。
+- 支持识别已有诸如 `001 标题`、`12_标题` 的前缀，并在此基础上继续自增。
+- 自动为新建文件夹进入重命名模式，方便继续编辑名称。
 
-Quick starting guide for new plugin devs:
+## 使用方法
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+### 安装
 
-## Releasing new releases
+1. 在 GitHub 下载发布包或自行构建，确保获得 `main.js`、`manifest.json`（如有样式还需 `styles.css`）。
+2. 将文件复制到你的库目录：`<Vault>/.obsidian/plugins/auto-number-prefix/`。
+3. 打开 Obsidian，进入 **Settings → Community plugins**，启用该插件。
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+### 使用
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+- 在目标文件夹中新建文件或文件夹，插件会检查同级条目，自动在名称前增加下一个数字前缀。
+- 如需修改起始编号，可手动调整已有文件名称；插件会从最大编号继续增长。
 
-## Adding your plugin to the community plugin list
+## 开发与构建
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+1. 克隆仓库并安装依赖：`npm install`
+2. 开发阶段使用 `npm run dev` 进入 watch 模式，或在每次修改后运行 `npm run build` 生成最新 `main.js`。
+3. 完成改动后，重载 Obsidian 或重新启用插件以应用新构建。
 
-## How to use
+## 致谢
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
-
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint (optional)
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- To use eslint with this project, make sure to install eslint from terminal:
-  - `npm install -g eslint`
-- To use eslint to analyze this project use this command:
-  - `eslint main.ts`
-  - eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-  - `eslint ./src/`
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
-```
-
-If you have multiple URLs, you can also do:
-
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
-```
-
-## API Documentation
-
-See https://github.com/obsidianmd/obsidian-api
+- 感谢 Obsidian 官方模板仓库 [obsidian-sample-plugin](https://github.com/obsidianmd/obsidian-sample-plugin) 提供脚手架与构建配置。
