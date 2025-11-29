@@ -31,6 +31,8 @@ export default class AutoNumberPrefixPlugin extends Plugin {
     const parent = file.parent;
     if (!parent) return;
 
+    if (this.isInAssetsPath(file)) return;
+
     const baseName = file instanceof TFile ? file.basename : file.name;
     const ext = file instanceof TFile ? file.extension : "";
 
@@ -86,6 +88,21 @@ export default class AutoNumberPrefixPlugin extends Plugin {
     } catch (e) {
       console.error("Auto Number Prefix: rename failed", e);
     }
+  }
+
+  /**
+   * Skip numbering for files/folders that live under an assets directory.
+   * This avoids renaming attachment folders like ./assets/${noteFileName}.
+   */
+  private isInAssetsPath(file: TAbstractFile): boolean {
+    let current: TAbstractFile | null = file;
+    while (current) {
+      if (current instanceof TFolder && current.name === "assets") {
+        return true;
+      }
+      current = current.parent;
+    }
+    return false;
   }
 
   /**
